@@ -33,9 +33,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <CoreServices/CoreServices.h>
 #include <CoreAudio/CoreAudio.h>
 
-typedef enum { 
-  	kAudioTypeUnknown = 0, 
-    kAudioTypeInput   = 1, 
+typedef enum {
+  	kAudioTypeUnknown = 0,
+    kAudioTypeInput   = 1,
     kAudioTypeOutput  = 2,
     kAudioTypeSystemOutput = 3
 } ASDeviceType;

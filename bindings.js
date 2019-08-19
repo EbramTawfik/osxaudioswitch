@@ -1,41 +1,40 @@
-
 /**
  * Module dependencies.
  */
 
-var fs = require('fs')
-  , nodeAbi = require('node-abi')
-  , path = require('path')
-  , join = path.join
-  , dirname = path.dirname
-  , exists = fs.existsSync || path.existsSync
-  , defaults = {
-        arrow: process.env.NODE_BINDINGS_ARROW || ' → '
-      , compiled: process.env.NODE_BINDINGS_COMPILED_DIR || 'compiled'
-      , platform: process.platform
-      , arch: process.arch
-      , version: process.versions.node
-      , bindings: 'bindings.node'
-      , electronbin: process.platform+'-'+process.arch+'-'+nodeAbi.getAbi(process.versions.node, 'node')
-      , try: [
-          // node-gyp's linked version in the "build" dir
-          [ 'module_root', 'build', 'bindings' ]
-          // node-waf and gyp_addon (a.k.a node-gyp)
-        , [ 'module_root', 'build', 'Debug', 'bindings' ]
-        , [ 'module_root', 'build', 'Release', 'bindings' ]
-          // Debug files, for development (legacy behavior, remove for node v0.9)
-        , [ 'module_root', 'out', 'Debug', 'bindings' ]
-        , [ 'module_root', 'Debug', 'bindings' ]
-          // Release files, but manually compiled (legacy behavior, remove for node v0.9)
-        , [ 'module_root', 'out', 'Release', 'bindings' ]
-        , [ 'module_root', 'Release', 'bindings' ]
-          // Legacy from node-waf, node <= 0.4.x
-        , [ 'module_root', 'build', 'default', 'bindings' ]
-          // Production "Release" buildtype binary (meh...)
-        , [ 'module_root', 'compiled', 'version', 'platform', 'arch', 'bindings' ]
-        , [ 'module_root', 'bin', 'electronbin', 'bindings' ]
-        ]
-    }
+var fs = require('fs'),
+  nodeAbi = require('node-abi'),
+  path = require('path'),
+  join = path.join,
+  dirname = path.dirname,
+  exists = fs.existsSync || path.existsSync,
+  defaults = {
+    arrow: process.env.NODE_BINDINGS_ARROW || ' → ',
+    compiled: process.env.NODE_BINDINGS_COMPILED_DIR || 'compiled',
+    platform: process.platform,
+    arch: process.arch,
+    version: process.versions.node,
+    bindings: 'bindings.node',
+    electronbin: process.platform + '-' + process.arch + '-' + nodeAbi.getAbi(process.versions.node, 'node'),
+    try: [
+      // node-gyp's linked version in the "build" dir
+      ['module_root', 'build', 'bindings'],
+      // node-waf and gyp_addon (a.k.a node-gyp)
+      ['module_root', 'build', 'Debug', 'bindings'],
+      ['module_root', 'build', 'Release', 'bindings'],
+      // Debug files, for development (legacy behavior, remove for node v0.9)
+      ['module_root', 'out', 'Debug', 'bindings'],
+      ['module_root', 'Debug', 'bindings'],
+      // Release files, but manually compiled (legacy behavior, remove for node v0.9)
+      ['module_root', 'out', 'Release', 'bindings'],
+      ['module_root', 'Release', 'bindings'],
+      // Legacy from node-waf, node <= 0.4.x
+      ['module_root', 'build', 'default', 'bindings'],
+      // Production "Release" buildtype binary (meh...)
+      ['module_root', 'compiled', 'version', 'platform', 'arch', 'bindings'],
+      ['module_root', 'bin', 'electronbin', 'bindings']
+    ]
+  };
 
 /**
  * The main `bindings()` function loads the compiled bindings for a given module.
@@ -43,60 +42,66 @@ var fs = require('fs')
  * being invoked from, which is then used to find the root directory.
  */
 
-function bindings (opts) {
-
+function bindings(opts) {
   // Argument surgery
   if (typeof opts == 'string') {
-    opts = { bindings: opts }
+    opts = { bindings: opts };
   } else if (!opts) {
-    opts = {}
+    opts = {};
   }
-  opts.__proto__ = defaults
+  opts.__proto__ = defaults;
 
-  var roots = [ process.cwd(), process.cwd() + "/node_modules/" + opts.bindings + "/" ];
+  var roots = [process.cwd(), process.cwd() + '/node_modules/' + opts.bindings + '/', __dirname];
 
   // Ensure the given bindings name ends with .node
   if (path.extname(opts.bindings) != '.node') {
-    opts.bindings += '.node'
+    opts.bindings += '.node';
   }
 
   for (var k = 0; k < roots.length; k++) {
+    opts.module_root = roots[k];
 
-          opts.module_root = roots[k];
+    var tries = [],
+      i = 0,
+      l = opts.try.length,
+      n,
+      b,
+      err;
 
-	  var tries = []
-	    , i = 0
-	    , l = opts.try.length
-	    , n
-	    , b
-	    , err
-
-	  for (; i<l; i++) {
-	    n = join.apply(null, opts.try[i].map(function (p) {
-	      return opts[p] || p
-	    }))
-	    tries.push(n)
-	    try {
-	      b = opts.path ? require.resolve(n) : require(n)
-	      if (!opts.path) {
-		b.path = n
-	      }
-	      return b
-	    } catch (e) {
-	      if (!/not find/i.test(e.message)) {
-		throw e
-	      }
-	    }
-	  }
+    for (; i < l; i++) {
+      n = join.apply(
+        null,
+        opts.try[i].map(function(p) {
+          return opts[p] || p;
+        })
+      );
+      tries.push(n);
+      try {
+        b = opts.path ? require.resolve(n) : require(n);
+        if (!opts.path) {
+          b.path = n;
+        }
+        return b;
+      } catch (e) {
+        if (!/not find/i.test(e.message)) {
+          throw e;
+        }
+      }
+    }
   }
 
-  err = new Error('Could not locate the bindings file. Tried:\n'
-    + tries.map(function (a) { return opts.arrow + a }).join('\n'))
-  err.tries = tries
-  throw err
+  err = new Error(
+    'Could not locate the bindings file. Tried:\n' +
+      tries
+        .map(function(a) {
+          return opts.arrow + a;
+        })
+        .join('\n')
+  );
+  err.tries = tries;
+  throw err;
 }
-module.exports = exports = bindings
-
+module.exports = exports = bindings;
 
 /**
  * Gets the filename of the JavaScript file that invokes this function.
@@ -104,39 +109,39 @@ module.exports = exports = bindings
  * Optionally accepts an filename argument to skip when searching for the invoking filename
  */
 
-exports.getFileName = function getFileName (calling_file) {
-  var origPST = Error.prepareStackTrace
-    , origSTL = Error.stackTraceLimit
-    , dummy = {}
-    , fileName
+exports.getFileName = function getFileName(calling_file) {
+  var origPST = Error.prepareStackTrace,
+    origSTL = Error.stackTraceLimit,
+    dummy = {},
+    fileName;
 
-  Error.stackTraceLimit = 10
+  Error.stackTraceLimit = 10;
 
-  Error.prepareStackTrace = function (e, st) {
-    for (var i=0, l=st.length; i<l; i++) {
-      fileName = st[i].getFileName()
+  Error.prepareStackTrace = function(e, st) {
+    for (var i = 0, l = st.length; i < l; i++) {
+      fileName = st[i].getFileName();
       if (fileName !== __filename) {
         if (calling_file) {
-            if (fileName !== calling_file) {
-              return
-            }
+          if (fileName !== calling_file) {
+            return;
+          }
         } else {
-          return
+          return;
         }
       }
     }
-  }
+  };
 
   // run the 'prepareStackTrace' function above
-  Error.captureStackTrace(dummy)
-  dummy.stack
+  Error.captureStackTrace(dummy);
+  dummy.stack;
 
   // cleanup
-  Error.prepareStackTrace = origPST
-  Error.stackTraceLimit = origSTL
+  Error.prepareStackTrace = origPST;
+  Error.stackTraceLimit = origSTL;
 
-  return fileName
-}
+  return fileName;
+};
 
 /**
  * Gets the root directory of a module, given an arbitrary filename
@@ -147,25 +152,24 @@ exports.getFileName = function getFileName (calling_file) {
  *   Out: /home/nate/node-native-module
  */
 
-exports.getRoot = function getRoot (file) {
-  var dir = dirname(file)
-    , prev
+exports.getRoot = function getRoot(file) {
+  var dir = dirname(file),
+    prev;
   while (true) {
     if (dir === '.') {
       // Avoids an infinite loop in rare cases, like the REPL
-      dir = process.cwd()
+      dir = process.cwd();
     }
     if (exists(join(dir, 'package.json')) || exists(join(dir, 'node_modules'))) {
       // Found the 'package.json' file or 'node_modules' dir; we're done
-      return dir
+      return dir;
     }
     if (prev === dir) {
       // Got to the top
-      throw new Error('Could not find module root given file: "' + file
-                    + '". Do you have a `package.json` file? ')
+      throw new Error('Could not find module root given file: "' + file + '". Do you have a `package.json` file? ');
     }
     // Try the parent dir next
-    prev = dir
-    dir = join(dir, '..')
+    prev = dir;
+    dir = join(dir, '..');
   }
-}
+};
